@@ -1,0 +1,7 @@
+# This script will prompt the user for the serve rname and their credentials, then connect to the server and 
+# return the Windows OS version name (ex. "Microsoft Windows Server 2008 R2 Enterprise")
+
+$computer = Read-Host "ComputerName"
+$credential = Get-Credential
+$OScheck = (Get-WmiObject -comp $computer -Credential $credential -Class Win32_OperatingSystem).Caption
+Write-Output $OScheck
