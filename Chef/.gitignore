@@ -5,6 +5,9 @@
 \#*#
 .*.sw[a-z]
 *.un~
+*.bak
+.DS_Store
+test/.DS_Store
 
 # Bundler
 Gemfile.lock
@@ -20,3 +23,9 @@ bin/*
 Berksfile.lock
 .zero-knife.rb
 Policyfile.lock.json
+
+# VS Code
+.vscode
+
+# Vagrant
+package.box
