@@ -1,4 +1,3 @@
-.vagrant
 *~
 *#
 .#*
@@ -29,3 +28,4 @@ Policyfile.lock.json
 
 # Vagrant
 package.box
+.vagrant
