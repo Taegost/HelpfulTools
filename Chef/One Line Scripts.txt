@@ -1,0 +1,2 @@
+Output a list of nodes that haven't checked in within 20 hours to a csv file
+knife status | grep hour | awk '$1>20' > longcheckin.csv
