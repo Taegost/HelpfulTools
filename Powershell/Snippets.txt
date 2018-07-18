@@ -1,0 +1,11 @@
+# Enable TLS 1.2 and Certificate Validation CallBack
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+[System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
+
+# Download file
+$WebClient = New-Object System.Net.WebClient
+$WebClient.DownloadFile( 'https://downloadurl/filename.zip', 'C:\Download\Path\filename.zip' )
+
+# Un-zip a local file
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::ExtractToDirectory('C:\Path\To\Local.File', 'C:\Path\To\Extract\To' )
