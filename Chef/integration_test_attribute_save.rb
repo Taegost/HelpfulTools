@@ -16,7 +16,7 @@ if ENV['TEST_KITCHEN']
 		  IO.write(File.join(tmp_path, 'chef_node.json'), node.to_json)
 		end
 	end # ruby_block 'Save node attributes'
-else
+end
 
 # ========================== Put this code in the tests ==========================
 require 'json'
