@@ -3,8 +3,8 @@
 # stage creates a local backup on the machine, then the 2nd stage mirrors those
 # backups to a remote location
 
-# 7-Zip is a pre-req to archive the files, you need to make sure it's installed
-# and accessible from the command shell before using.
+# 7-Zip and rsync are pre-reqs to archive and sync the files, you need to make sure 
+# they're installed and accessible from the command shell before using.
 # As always, make sure you test that it works before trusting it.
 
 # Set variables
@@ -14,28 +14,32 @@ SERVER_FOLDER="/path/to/folders"
 LOCAL_BACKUP_FOLDER="/backups/$APPLICATION_NAME"
 LOCAL_TEMP_FOLDER="/tmp/$APPLICATION_NAME"
 BACKUP_DESTINATION="//RemoteFileServer/Backups/$APPLICATION_NAME"
-ROTATE_DAYS=5
+ROTATE_DAYS=5 # Number of days to keep backups
 
 # Uses the date format YYYY-MM-DD (ex. 2019-07-23)
 BACKUP_DATE=$(date +%F)
 
-echo 'Switch to the backup folder'
+if ! [ -d $LOCAL_BACKUP_FOLDER ]; then 
+  echo "Creating local backup folder"
+  mkdir -p $LOCAL_BACKUP_FOLDER
+fi
 
-cd $LOCAL_BACKUP_FOLDER
+echo 'Rotate the folders, if they already exist'
 
-# This keeps 5 days of backups.  To keep more, just modify this section
-# This may generate errors during the first few runs, but they can be safely
-# ignored as long as you know the folders really don't exist.
-echo 'In case the the folders already exist, rotate them'
+# Delete the oldest backup as it is now older than the maximum days to keep
 last_folder="$LOCAL_BACKUP_FOLDER/Day$ROTATE_DAYS"
 if [ -d "$last_folder" ]; then 
   rm -Rf $last_folder
 fi
-for count in $(seq 1 $(ROTATE_DAYS-1)); do 
-  mv "$LOCAL_BACKUP_FOLDER/Day$ROTATE_DAYS" "$LOCAL_BACKUP_FOLDER/Day$(ROTATE_DAYS+1)"
+
+for ((count=$((ROTATE_DAYS - 1));count>0;count-=1)); do
+  current_folder="$LOCAL_BACKUP_FOLDER/Day$count"
+  if [ -d $current_folder ]; then
+    mv $current_folder "$LOCAL_BACKUP_FOLDER/Day$(( $count + 1 ))"
+  fi
 done
 
-mkdir -p "Day1"
+mkdir -p "$LOCAL_BACKUP_FOLDER/Day1"
 
 # It's important to copy the files first because if any of them are in use
 # at the time 7-Zip tries to archive them, they will most likely be skipped.
@@ -43,15 +47,22 @@ echo 'Copying the files to a temporary location'
 if [ -d "$LOCAL_TEMP_FOLDER" ]; then 
   rm -Rf $LOCAL_TEMP_FOLDER
 fi
+
 cp -r $SERVER_FOLDER $LOCAL_TEMP_FOLDER
 
 # In addition to creating the archive, it also creates an archive log, to 
-# aid in troubleshooting
+# aid in troubleshooting.  It ignores a folder named "Archive" within the folder that was copied, in case it exists.
 echo 'Zipping files'
 7z a "$LOCAL_BACKUP_FOLDER/Day1/$APPLICATION_NAME_Backup_$BACKUP_DATE.zip" -xr!$APPLICATION_NAME/Archive $LOCAL_TEMP_FOLDER > "$LOCAL_BACKUP_FOLDER/Day1/Archive.Log"
 
 # Excludes the \Archive and \Weekly folders in the destination folder so they 
 # aren't overwritten during the mirror operation.  ALso creates a log in the
 # destination folder.
-echo 'Mirror to the backup folder on the fileserver'
-Robocopy "%LOCAL_DRIVE%%LOCAL_BACKUP_FOLDER%" "%BACKUP_DESTINATION%" /XD "%BACKUP_DESTINATION%\Weekly" "%BACKUP_DESTINATION%\Archive" /MIR /COPY:DT /FFT /LOG:"%BACKUP_DESTINATION%\Robocopy.Log" 
+
+if ! [ -d $BACKUP_DESTINATION ]; then 
+  echo "Creating remote backup folder"
+  mkdir -p $BACKUP_DESTINATION
+fi
+
+echo 'Mirror to the remote backup folder'
+rsync -rz4v --delete --exclude 'rsync.log' --exclude 'Archive' --exclude 'Weekly' $LOCAL_BACKUP_FOLDER/ $BACKUP_DESTINATION > $BACKUP_DESTINATION/rsync.log
