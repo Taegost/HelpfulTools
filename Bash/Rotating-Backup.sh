@@ -35,7 +35,8 @@ fi
 for ((count=$((ROTATE_DAYS - 1));count>0;count-=1)); do
   current_folder="$LOCAL_BACKUP_FOLDER/Day$count"
   if [ -d $current_folder ]; then
-    mv $current_folder "$LOCAL_BACKUP_FOLDER/Day$(( $count + 1 ))"
+    cp -r -p $current_folder "$LOCAL_BACKUP_FOLDER/Day$(( $count + 1 ))" # Copy and preserve timestamp
+    rm -Rf $current_folder
   fi
 done
 
@@ -53,7 +54,7 @@ cp -r $SERVER_FOLDER $LOCAL_TEMP_FOLDER
 # In addition to creating the archive, it also creates an archive log, to 
 # aid in troubleshooting.  It ignores a folder named "Archive" within the folder that was copied, in case it exists.
 echo 'Zipping files'
-7z a "$LOCAL_BACKUP_FOLDER/Day1/$APPLICATION_NAME_Backup_$BACKUP_DATE.zip" -xr!$APPLICATION_NAME/Archive $LOCAL_TEMP_FOLDER > "$LOCAL_BACKUP_FOLDER/Day1/Archive.Log"
+7z a "${LOCAL_BACKUP_FOLDER}/Day1/${APPLICATION_NAME}_Backup_${BACKUP_DATE}.zip" -xr!$APPLICATION_NAME/Archive $LOCAL_TEMP_FOLDER > "$LOCAL_BACKUP_FOLDER/Day1/Archive.Log"
 
 # Excludes the \Archive and \Weekly folders in the destination folder so they 
 # aren't overwritten during the mirror operation.  ALso creates a log in the
@@ -65,4 +66,4 @@ if ! [ -d $BACKUP_DESTINATION ]; then
 fi
 
 echo 'Mirror to the remote backup folder'
-rsync -rz4v --delete --exclude 'rsync.log' --exclude 'Archive' --exclude 'Weekly' $LOCAL_BACKUP_FOLDER/ $BACKUP_DESTINATION > $BACKUP_DESTINATION/rsync.log
+rsync -rz4vt --delete --exclude 'rsync.log' --exclude 'Archive' --exclude 'Weekly' $LOCAL_BACKUP_FOLDER/ $BACKUP_DESTINATION > $BACKUP_DESTINATION/rsync.log
