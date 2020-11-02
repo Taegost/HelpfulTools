@@ -5,7 +5,7 @@
 #                       
 # CREATE DATE: 			  10/24/20
 # CREATE AUTHOR(S):		Mike Wheway
-# LAST MODIFY DATE:		10/24/20
+# LAST MODIFY DATE:		11/2/20
 # LAST MODIFY AUTHOR:	Mike Wheway
 # RUN SYNTAX:			-domain (hostname)
 #
@@ -16,16 +16,18 @@
 #------------------------------------------------------------------------------
 Param
 (
+  [parameter(Position=0)]  
   [string]$domain = "google.com"
 )
 
-$ping = New-Object System.Net.NetworkInformation.Ping
-$domainIp = $($ping.Send($domain).Address).IPAddressToString
+$domainIp = [System.Net.Dns]::GetHostAddresses($domain)[0].IPAddressToString;
 
 $externalIp = (Invoke-WebRequest ifconfig.me/ip).Content.Trim()
 
-Write-Output "Domain: $domainIp"
-Write-Output "External: $externalIp"
+Write-Output "Domain Name: $domain"
+Write-Output "Domain IP: $domainIp"
+Write-Output "External IP: $externalIp"
+
 If ($domainIp -eq $externalIp) 
 { Write-Output "The IP addresses match" }
 else 
