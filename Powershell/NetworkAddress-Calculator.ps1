@@ -20,21 +20,21 @@
 
 Param
 (
-  [parameter(Position=0)]  
-  $ip = "0.0.0.0",
-  [parameter(Position=1)]  
-  $subnet = "255.255.255.0"
+  [parameter(Mandatory)]
+  [IpAddress]$ip = "0.0.0.0",
+  [parameter()]
+  [IpAddress]$subnet = ""
 )
 
 #============================ Functions Section ============================
 
-Function IpToBinary ($ipAddress)
+Function IpToBinary ([string]$ipAddress)
 {
-  $ipAddress.split(".") | %{$binary=$binary + $([convert]::toString($_,2).padleft(8,"0"))}
+  $ipAddress.split(".") | ForEach-Object{$binary=$binary + $([convert]::toString($_,2).padleft(8,"0"))}
   return $binary
 } # function IpToBinary
 
-Function BinaryToIp ($binary)
+Function BinaryToIp ([string]$binary)
 {
   do {$ipAddress += "." + [string]$([convert]::toInt32($binary.substring($i,8),2)); $i+=8 } while ($i -le 24)
   return $ipAddress.substring(1)
@@ -47,18 +47,29 @@ Function IsBinaryValid ($data)
 
 Function IsIpValid ($data)
 {
-  Return ((IsBinaryValid $data) -or ($ipBinary.substring($netBits) -eq "00000000") -or ($ipBinary.substring($netBits) -eq "11111111"))
+  Return (IsBinaryValid $data)
 } # Function IsIpValid
 
 Function IsSubnetValid ($data)
 {
-  Return ((IsBinaryValid $data) -or ($smBinary.substring($netBits).contains("1") -eq $true))
+  Return ((IsBinaryValid $data) -and ($data.contains("0") -eq $true))
 } # Function IsSubnetValid
 
 #============================ Main Section ============================
 $ipBinary = IpToBinary $ip
+if (!(IsIpValid $ipBinary))
+{
+  Write-Output "IP address is not valid: $ip"
+  Return
+}
 $snBinary = IpToBinary $subnet
+if (!(IsSubnetValid $snBinary))
+{
+  Write-Output "Subnet Mask is not valid: $subnet"
+  Return
+}
 $netBits=$snBinary.indexOf("0")
+
 
 # Identify subnet boundaries
 $networkID = BinaryToIp $($ipBinary.substring(0,$netBits).padright(32,"0"))
@@ -67,7 +78,7 @@ $lastAddress = BinaryToIp $($ipBinary.substring(0,$netBits).padright(31,"1") + "
 $broadCast = BinaryToIp $($ipBinary.substring(0,$netBits).padright(32,"1"))
 
 # Write output
-"`n   Network ID:`t$networkID/$netBits"
+Write-Output "`n   Network ID:`t$networkID/$netBits"
 "First Address:`t$firstAddress"
 " Last Address:`t$lastAddress"
 "    Broadcast:`t$broadCast`n"
