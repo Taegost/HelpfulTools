@@ -1,17 +1,18 @@
 #==============================================================================
-# SCRIPT PURPOSE:		  To determine CIDR notation and network addresses from a
-#                     subnet.
+# SCRIPT PURPOSE:		  To determine network details with a defined subnet
 #                       
 # CREATE DATE: 			  6/10/2022
 # CREATE AUTHOR(S):		Mike Wheway
-# LAST MODIFY DATE:		6/10/2022
+# LAST MODIFY DATE:		6/13/2022
 # LAST MODIFY AUTHOR:	Mike Wheway
 # RUN SYNTAX:			    ./NetworkAddress-Calculator.ps1 -ip x.x.x.x -subnet x.x.x.x
 #
 #
 # COMMENT: When given an IP address and subnet, this script will calculate the
-#         Network ID in CIDR format, the beginning and ending IPs, and the
-#         Broadcast address.
+#         Network address, the beginning and ending IPs, and the Broadcast 
+#         address.
+#         The script *does* accept CIDR formatting, in which case it will ignore
+#         any subnet parameter given at the commandline
 #           
 #------------------------------------------------------------------------------
 # --== As always, make sure you test that it works before trusting it ==--
@@ -38,7 +39,7 @@ class IpDetails
 
   IpDetails([string]$inIp, [string]$inSubnet)
   {
-    if ($inIp.Contains("/"))
+    if ($inIp.Contains("/")) # We assume it's CIDR format
     {
       $splitIp = $inIp.Split("/")
       $this.ip = $splitIp[0]
@@ -51,8 +52,14 @@ class IpDetails
       $this.ip = $inIp 
       $this.subnet = $inSubnet
       $this.subnetBinary = [IpDetails]::IpToBinary($this.subnet)
-      $this.netBits = $this.subnetBinary.IndexOf("0")
 
+      # If the subnet is 0.0.0.0 or 255.255.255.255, we need to adjust the logic.
+      if (($this.subnetBinary.Contains("0")) -and ($this.subnetBinary.Contains("1")))
+        { $this.netBits = $this.subnetBinary.IndexOf("0") }
+      elseif ($this.subnetBinary.Contains("0"))
+        { $this.netBits = 0 }
+      else
+        { $this.netBits = 32 }
     } # if ($inIp.Contains("/"))
     $this.ipBinary = [IpDetails]::IpToBinary($this.ip)
   } # constructor
@@ -73,7 +80,7 @@ class IpDetails
   
   [string]ToString()
   {
-    $bits = $this.netbits #Using this.netbits directly causes problems in the return string
+    $bits = $this.netbits #Using this.netbits directly causes problems in the return
 
     # Identify subnet boundaries
     $networkID = [IpDetails]::BinaryToIp($this.ipBinary.substring(0,$bits).padright(32,"0"))
