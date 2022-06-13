@@ -17,68 +17,79 @@
 # --== As always, make sure you test that it works before trusting it ==--
 
 #============================ Initialization Section ============================
+#Requires -Version 5.0
 
 Param
 (
-  [parameter(Mandatory)]
-  [IpAddress]$ip = "0.0.0.0",
-  [parameter()]
-  [IpAddress]$subnet = ""
+  [Parameter()]
+  [string]$ip,
+  [Parameter()]
+  [string]$subnet
 )
 
-#============================ Functions Section ============================
-
-Function IpToBinary ([string]$ipAddress)
+#============================ Class Section ============================
+class IpDetails
 {
-  $ipAddress.split(".") | ForEach-Object{$binary=$binary + $([convert]::toString($_,2).padleft(8,"0"))}
-  return $binary
-} # function IpToBinary
+  [IpAddress]$ip
+  [string]$ipBinary = ""
+  [IpAddress]$subnet
+  [string]$subnetBinary = ""
+  [int]$netbits
 
-Function BinaryToIp ([string]$binary)
-{
-  do {$ipAddress += "." + [string]$([convert]::toInt32($binary.substring($i,8),2)); $i+=8 } while ($i -le 24)
-  return $ipAddress.substring(1)
-} # Function BinaryToIp
+  IpDetails([string]$inIp, [string]$inSubnet)
+  {
+    if ($inIp.Contains("/"))
+    {
+      $splitIp = $inIp.Split("/")
+      $this.ip = $splitIp[0]
+      $this.netbits = $splitIp[1]
+      $this.subnetBinary = $this.subnetBinary.PadRight(($this.netbits - 1), "1").PadRight(32, "0")
+      $this.subnet = [IpDetails]::BinaryToIp($this.subnetBinary)
+    }
+    else 
+    { 
+      $this.ip = $inIp 
+      $this.subnet = $inSubnet
+      $this.subnetBinary = [IpDetails]::IpToBinary($this.subnet)
+      $this.netBits = $this.subnetBinary.IndexOf("0")
 
-Function IsBinaryValid ($data)
-{
-  Return $data.Length -eq 32
-} # Function ValidateBinary
+    } # if ($inIp.Contains("/"))
+    $this.ipBinary = [IpDetails]::IpToBinary($this.ip)
+  } # constructor
 
-Function IsIpValid ($data)
-{
-  Return (IsBinaryValid $data)
-} # Function IsIpValid
+  static [string]IpToBinary ([IpAddress]$ipAddress)
+  {
+    [string]$binary = ""
+    $ipAddress.ToString().Split(".") | ForEach-Object{$binary=$binary + $([convert]::toString($_,2).padleft(8,"0"))}
+    return $binary
+  } # method IpToBinary
 
-Function IsSubnetValid ($data)
-{
-  Return ((IsBinaryValid $data) -and ($data.contains("0") -eq $true))
-} # Function IsSubnetValid
+  static [IpAddress]BinaryToIp ([string]$binary) 
+  {
+    [int]$i = 0
+    do {$ipAddress += "." + [string]$([convert]::toInt32($binary.substring($i,8),2)); $i+=8 } while ($i -le 24)
+    return $ipAddress.substring(1)
+  } # method BinaryToIp
+  
+  [string]ToString()
+  {
+    $bits = $this.netbits #Using this.netbits directly causes problems in the return string
+
+    # Identify subnet boundaries
+    $networkID = [IpDetails]::BinaryToIp($this.ipBinary.substring(0,$bits).padright(32,"0"))
+    $firstAddress = [IpDetails]::BinaryToIp($this.ipBinary.substring(0,$bits).padright(31,"0") + "1")
+    $lastAddress = [IpDetails]::BinaryToIp($this.ipBinary.substring(0,$bits).padright(31,"1") + "0")
+    $broadCast = [IpDetails]::BinaryToIp($this.ipBinary.substring(0,$bits).padright(32,"1"))
+
+    $returnStr =  "Network ID:`t$networkID/$bits
+First Address:`t$firstAddress
+Last Address:`t$lastAddress
+Broadcast:`t$broadCast"
+    return $returnStr
+  } # method ShowNetworkBoundaries
+} # class IpDetails
 
 #============================ Main Section ============================
-$ipBinary = IpToBinary $ip
-if (!(IsIpValid $ipBinary))
-{
-  Write-Output "IP address is not valid: $ip"
-  Return
-}
-$snBinary = IpToBinary $subnet
-if (!(IsSubnetValid $snBinary))
-{
-  Write-Output "Subnet Mask is not valid: $subnet"
-  Return
-}
-$netBits=$snBinary.indexOf("0")
-
-
-# Identify subnet boundaries
-$networkID = BinaryToIp $($ipBinary.substring(0,$netBits).padright(32,"0"))
-$firstAddress = BinaryToIp $($ipBinary.substring(0,$netBits).padright(31,"0") + "1")
-$lastAddress = BinaryToIp $($ipBinary.substring(0,$netBits).padright(31,"1") + "0")
-$broadCast = BinaryToIp $($ipBinary.substring(0,$netBits).padright(32,"1"))
-
-# Write output
-Write-Output "`n   Network ID:`t$networkID/$netBits"
-"First Address:`t$firstAddress"
-" Last Address:`t$lastAddress"
-"    Broadcast:`t$broadCast`n"
+[IpDetails]$validator = [IpDetails]::new($ip, $subnet)
+$validator
+$validator.ToString()
