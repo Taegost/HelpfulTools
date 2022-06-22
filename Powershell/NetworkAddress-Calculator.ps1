@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
-  To determine network details with a defined subnet
+  To determine network address details for a defined IP and subnet.
 .DESCRIPTION
-  When given an IP address and subnet or mask length(CIDR notation), this script will calculate the Network 
+  When given an IP address and subnet/mask length(CIDR notation), this script will calculate the Network 
   address, the beginning and ending IPs, and the Broadcast address.
 .NOTES
   An IP address must be specified and either subnet mask or mask length, but not both.
@@ -11,22 +11,27 @@
   NetworkAddress-Calculator -ip 192.168.1.1 -maskLength 24
 #>
 
-#============================ Initialization Section ============================
+#region Initialization
 #Requires -Version 5.0
 
 Param
 (
-  #Only valid IP addresses are accepted
+  # Base IP address to use for calculations (ex. 192.168.1.1)
   [Parameter(
     Mandatory=$true,
     HelpMessage = "Must be a valid IP address"
   )]
   [IpAddress]$ip,
+
+  # Subnet mask to use for calculations (ex. 255.255.255.0). Can not be combined with maskLength
   [Parameter(
     Mandatory=$true,
     ParameterSetName="Subnet"
   )]
   [IpAddress]$subnet,
+
+  # Netmask to use for calculations (ex. 24). Cannot be combined with subnet.
+  # Valid values are 1-31
   [Parameter(
     Mandatory=$true,
     ParameterSetName="CIDR",
@@ -36,8 +41,9 @@ Param
   [Alias("CIDR")]
   [int]$maskLength
 )
+#endregion Initialization
 
-#============================ Class Section ============================
+#region Class
 class IpDetails
 {
   [IpAddress]$ip
@@ -46,9 +52,9 @@ class IpDetails
   hidden [string]$subnetBinary = ""
   [int]$maskLength
   [IpAddress]$networkId
-  [IpAddress]firstNetworkAddress
-  [IpAddress]lastNetworkAddress
-  [IpAddress]broadCastAddress
+  [IpAddress]$firstNetworkAddress
+  [IpAddress]$lastNetworkAddress
+  [IpAddress]$broadCastAddress
 
   IpDetails([IpAddress]$inIp, [IpAddress]$inSubnet)
   {
@@ -57,7 +63,7 @@ class IpDetails
     $this.subnet = $inSubnet
     $this.subnetBinary = [IpDetails]::IpToBinary($this.subnet)
     $this.maskLength = $this.subnetBinary.IndexOf("0")
-    [IpDetails]::CalculateNetworkInformation()
+    $this.CalculateNetworkInformation()
   } # subnet constructor
 
   IpDetails([IpAddress]$inIp, [int]$maskLength)
@@ -65,19 +71,22 @@ class IpDetails
     $this.ip = $inIp 
     $this.ipBinary = [IpDetails]::IpToBinary($this.ip)
     $this.maskLength = $maskLength
-    $this.subnetBinary = [string].PadRight(($this.maskLength - 1), "1").PadRight(32, "0")
+    $this.subnetBinary = "".PadRight(($this.maskLength - 1), "1").PadRight(32, "0")
     $this.subnet = [IpDetails]::BinaryToIp($this.subnetBinary)
-    [IpDetails]::CalculateNetworkInformation()
+    $this.CalculateNetworkInformation()
   } # CIDR constructor
 
-  private [void]CalculateNetworkInformation()
+  # Calculates and stores the network details based on the given IP and subnet
+  [void]CalculateNetworkInformation()
   {
-    $this.networkID = [IpDetails]::BinaryToIp($this.ipBinary.substring(0,$this.maskLength).padright(32,"0"))
+    [int]$bits = $this.maskLength # This is just to make the next lines shorter and more readable
+    $this.networkID = [IpDetails]::BinaryToIp($this.ipBinary.substring(0,$bits).padright(32,"0"))
     $this.firstNetworkAddress = [IpDetails]::BinaryToIp($this.ipBinary.substring(0,$bits).padright(31,"0") + "1")
     $this.lastNetworkAddress = [IpDetails]::BinaryToIp($this.ipBinary.substring(0,$bits).padright(31,"1") + "0")
     $this.broadCastAddress = [IpDetails]::BinaryToIp($this.ipBinary.substring(0,$bits).padright(32,"1"))
   } # method CalculateNetworkInformation
 
+  # Converts an IP address into a binary notation string
   static [string]IpToBinary ([IpAddress]$ipAddress)
   {
     [string]$binary = ""
@@ -85,13 +94,27 @@ class IpDetails
     return $binary
   } # method IpToBinary
 
-  static [IpAddress]BinaryToIp ([string]$binary) 
+  # Converts a brinary notation string into an IP address
+  static [IpAddress]BinaryToIp ([string]$binary)
   {
     [int]$i = 0
-    do {$ipAddress += "." + [string]$([convert]::toInt32($binary.substring($i,8),2)); $i+=8 } while ($i -le 24)
+    do 
+    {
+      $ipAddress += "." + [string]$([convert]::toInt32($binary.substring($i,8),2))
+      $i+=8 
+    } while ($i -le 24)
     return $ipAddress.substring(1)
   } # method BinaryToIp
 } # class IpDetails
 
-#============================ Main Section ============================
-[IpDetails]::new($ip, $subnet)
+#endregion Classs
+
+#region Main
+switch ($PSCmdlet.ParameterSetName)
+{
+  "Subnet" { [IpDetails]::new($ip, $subnet) }
+  "CIDR"   { [IpDetails]::new($ip, $maskLength) }
+  Default  { Write-Error "Invalid parameters given, please review Get-Help for this script"}
+} # switch ($PSCmdlet.ParameterSetName)
+#endregion Main
+
