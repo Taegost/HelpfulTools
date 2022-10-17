@@ -9,3 +9,6 @@ $WebClient.DownloadFile( 'https://downloadurl/filename.zip', 'C:\Download\Path\f
 # Un-zip a local file
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [System.IO.Compression.ZipFile]::ExtractToDirectory('C:\Path\To\Local.File', 'C:\Path\To\Extract\To' )
+
+# Rename files in folder by adding _32 to each name (ex. file.txt becomes file_32.txt)
+Get-ChildItem | Rename-Item -NewName {$_.BaseName + "_32" + $_.Extension}
