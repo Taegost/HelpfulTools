@@ -12,3 +12,6 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 # Rename files in folder by adding _32 to each name (ex. file.txt becomes file_32.txt)
 Get-ChildItem | Rename-Item -NewName {$_.BaseName + "_32" + $_.Extension}
+
+# Remove line endings from a file and write into a different one
+(Get-Content 'c:\temp\input.txt') -join ' ' | Add-Content 'c:\temp\output.txt'
