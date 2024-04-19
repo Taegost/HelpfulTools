@@ -32,11 +32,22 @@ function Use-Folder([string]$folder)
 function Copy-File ([string]$file)
 {
     Write-Output "Processing file: $file"
-    $extension = (Split-Path $file -Leaf).Split(".")[-1]
+    $fileName = (Split-Path $file -Leaf)
+    $filePath = (Split-Path $file -Parent)
+    # $destinationPath = Join-Path $destinationFolder $fileName
+    $extension = $fileName.Split(".")[-1]
     if ($validExtensions -contains $extension)
     {
         Write-Output "Valid video file, copying"
-        Copy-Item -Path $file -Destination $destinationFolder
+        Robocopy "$filePath" "$destinationFolder" "$fileName" /mt /z /njh /xn /xo
+        # if (Test-Path $destinationPath)
+        # {
+        #     Write-Output "File already exists in destination, skipping"
+        # }
+        # else
+        # {
+        #     Copy-Item -Path $file -Destination $destinationFolder
+        # }
     }
     else
     {
@@ -52,11 +63,11 @@ Write-Output "Name: $name"
 Write-Output "Destination: $destinationFolder"
 
 $testPath = Join-Path $path $name
-$isDirectory = (Get-Item $testPath).PSIsContainer
+$testIsDirectory = (Get-Item $testPath -ErrorAction SilentlyContinue).PSIsContainer
 
 #$isDirectory = Test-Path -Path $childPath -PathType Container
 #$isDirectory = $false
-if ($isDirectory)
+if (-not $testIsDirectory)
 {
     $fullPath = $path
     Use-Folder $fullPath
