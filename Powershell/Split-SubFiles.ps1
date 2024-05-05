@@ -11,7 +11,7 @@ Start-Transcript -Path "C:\Scripts\Split-SubFiles.log" -Append
 function Use-Folder([string]$folder)
 {
     Write-Output "Processing directory: $folder"
-    $subFolders = (Get-ChildItem $folder -Directory).FullName
+    $subFolders = (Get-ChildItem -LiteralPath $folder -Directory).FullName
     if ($subFolders)
     {
         Write-Output "Processing sub-folders first"
@@ -22,7 +22,7 @@ function Use-Folder([string]$folder)
         Write-Output "There are no sub-folders"
     }
     
-    $files = (Get-ChildItem $folder -File).FullName
+    $files = (Get-ChildItem -LiteralPath $folder -File).FullName
     foreach ($file in $files)
     {
         Copy-File $file
@@ -34,20 +34,25 @@ function Copy-File ([string]$file)
     Write-Output "Processing file: $file"
     $fileName = (Split-Path $file -Leaf)
     $filePath = (Split-Path $file -Parent)
-    # $destinationPath = Join-Path $destinationFolder $fileName
     $extension = $fileName.Split(".")[-1]
     if ($validExtensions -contains $extension)
     {
         Write-Output "Valid video file, copying"
+
+        # Alternate between two folders
+        $pathOneCount = (Get-ChildItem -LiteralPath $destinationFolderOne).Count
+        $pathTwoCount = (Get-ChildItem -LiteralPath $destinationFolderTwo).Count
+        if ($pathOneCount -lt $pathTwoCount)
+        {
+            $destinationFolder = $destinationFolderOne
+        }
+        else
+        {
+            $destinationFolder = $destinationFolderTwo
+        }
+        Write-Output "Destination: $destinationFolder"
+        
         Robocopy "$filePath" "$destinationFolder" "$fileName" /mt /z /njh /xn /xo
-        # if (Test-Path $destinationPath)
-        # {
-        #     Write-Output "File already exists in destination, skipping"
-        # }
-        # else
-        # {
-        #     Copy-Item -Path $file -Destination $destinationFolder
-        # }
     }
     else
     {
@@ -56,26 +61,28 @@ function Copy-File ([string]$file)
 }
 
 $validExtensions = @("WMV","MKV","MPG","MPEG","MP4","FLV","AVI","divx","m2ts","mov","ts","wmv","xvid")
+$destinationFolderOne = "\\phoenix.local\Multimedia\Torrent Files\Encode"
+$destinationFolderTwo = "\\phoenix.local\Multimedia\Torrent Files\Encode2"
 
-$destinationFolder = "\\phoenix.local\Multimedia\Torrent Files\Encode"
+Write-Output "Current time: $(Get-Date)"
 Write-Output "Path: $path"
 Write-Output "Name: $name"
-Write-Output "Destination: $destinationFolder"
 
-$testPath = Join-Path $path $name
-$testIsDirectory = (Get-Item $testPath -ErrorAction SilentlyContinue).PSIsContainer
+Write-Output "Pausing for 60 seconds before continuing"
+Start-Sleep -Seconds 60
 
-#$isDirectory = Test-Path -Path $childPath -PathType Container
-#$isDirectory = $false
-if (-not $testIsDirectory)
+#$testPath = Join-Path $path $name
+if (Test-Path -LiteralPath $path -PathType Leaf)
 {
-    $fullPath = $path
-    Use-Folder $fullPath
+    Copy-File $path
 }
-else
+elseif (Test-Path -LiteralPath $path -PathType Container)
 {
-    $fullPath = $testPath
-    Copy-File $fullPath
+    Use-Folder $path
+}
+else 
+{
+    Write-Error "Unknown path type"
 }
 
 Stop-Transcript
