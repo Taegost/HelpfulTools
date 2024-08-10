@@ -52,7 +52,7 @@ function Copy-File ([string]$file)
         }
         Write-Output "Destination: $destinationFolder"
         
-        Robocopy "$filePath" "$destinationFolder" "$fileName" /mt /z /njh /xn /xo
+        Robocopy "$filePath" "$destinationFolder" "$fileName" /z /njh /xn /xo
     }
     else
     {
